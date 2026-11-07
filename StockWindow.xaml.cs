@@ -20,7 +20,54 @@ public partial class StockWindow : Window
         InitializeComponent();
         Load();
         Refresh();
+        ShowPage(StockPage.Overview);
         Loaded += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(SavePreviewIfRequested));
+    }
+
+    private enum StockPage { Overview, Products, History }
+
+    private void Overview_Click(object sender, RoutedEventArgs e) => ShowPage(StockPage.Overview);
+    private void Products_Click(object sender, RoutedEventArgs e) => ShowPage(StockPage.Products);
+    private void History_Click(object sender, RoutedEventArgs e) => ShowPage(StockPage.History);
+
+    private void ShowPage(StockPage page)
+    {
+        var overview = page == StockPage.Overview;
+        var history = page == StockPage.History;
+        SummaryPanel.Visibility = history ? Visibility.Collapsed : Visibility.Visible;
+        ProductsPanel.Visibility = history ? Visibility.Collapsed : Visibility.Visible;
+        HistoryPanel.Visibility = page == StockPage.Products ? Visibility.Collapsed : Visibility.Visible;
+        SummaryRow.Height = history ? new GridLength(0) : new GridLength(85);
+        SummaryGap.Height = history ? new GridLength(0) : new GridLength(16);
+        ProductsRow.Height = history ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        HistoryGap.Height = overview ? new GridLength(13) : new GridLength(0);
+        HistoryRow.Height = history ? new GridLength(1, GridUnitType.Star) :
+            overview ? new GridLength(165) : new GridLength(0);
+        PageTitle.Text = page switch
+        {
+            StockPage.Products => "Products and stock",
+            StockPage.History => "Movement history",
+            _ => "Inventory management"
+        };
+        PageSubtitle.Text = page switch
+        {
+            StockPage.Products => "Find products and update stock quantities",
+            StockPage.History => "Review recent receipts and shipments",
+            _ => "Products, movements, and alerts in one view"
+        };
+        HistoryTitle.Text = history ? "Movement history" : "Recent movements";
+        foreach (var button in new[] { OverviewButton, ProductsButton, HistoryButton })
+        {
+            var active = button == (page switch
+            {
+                StockPage.Products => ProductsButton,
+                StockPage.History => HistoryButton,
+                _ => OverviewButton
+            });
+            button.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active ? "#2B405E" : "#192942"));
+            button.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString(active ? "#FFFFFF" : "#BCC7D7"));
+            button.FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
+        }
     }
 
     private void SavePreviewIfRequested()

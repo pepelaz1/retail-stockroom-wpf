@@ -27,7 +27,7 @@ dotnet publish .\RetailStockDesk.csproj -c Release -r win-x64 --self-contained f
 .\publish\RetailStockDesk.exe
 ```
 
-Select a product, enter a quantity, then use **Приход** or **Расход**. The application prevents negative stock. To restart the sample, close the app and delete `inventory.json` next to the executable.
+Select a product, enter a quantity, then use **Receive** or **Ship**. The application prevents negative stock. To restart the sample, close the app and delete `inventory.json` next to the executable.
 
 ## Scope
 

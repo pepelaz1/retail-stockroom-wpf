@@ -56,7 +56,7 @@ public partial class StockWindow : Window
                 return;
             }
         }
-        catch (Exception ex) { Warn("Не удалось прочитать локальные данные: " + ex.Message); }
+        catch (Exception ex) { Warn("Could not read local data: " + ex.Message); }
         _inventory = Inventory.Demo();
         Save();
     }
@@ -71,7 +71,7 @@ public partial class StockWindow : Window
             File.Move(temporary, _file, true);
             return true;
         }
-        catch (Exception ex) { Warn("Не удалось сохранить данные: " + ex.Message); return false; }
+        catch (Exception ex) { Warn("Could not save data: " + ex.Message); return false; }
     }
 
     private void Refresh(string? selectedSku = null)
@@ -85,7 +85,7 @@ public partial class StockWindow : Window
         CountText.Text = _inventory.Products.Count.ToString();
         UnitsText.Text = _inventory.Products.Sum(p => p.Quantity).ToString("N0");
         LowText.Text = _inventory.Products.Count(p => p.Quantity <= p.Minimum).ToString();
-        FilterText.Text = $"Показано {rows.Count} из {_inventory.Products.Count}";
+        FilterText.Text = $"Showing {rows.Count} of {_inventory.Products.Count}";
         HistoryGrid.ItemsSource = _inventory.Movements.OrderByDescending(m => m.Time).Take(50).ToList();
     }
 
@@ -95,21 +95,21 @@ public partial class StockWindow : Window
     }
 
     private void Product_Selected(object sender, SelectionChangedEventArgs e)
-        => SelectedText.Text = (ProductsGrid.SelectedItem as ProductRow)?.Name ?? "Выберите товар в таблице";
+        => SelectedText.Text = (ProductsGrid.SelectedItem as ProductRow)?.Name ?? "Select a product in the table";
 
     private void Receive_Click(object sender, RoutedEventArgs e) => Move(1);
     private void Ship_Click(object sender, RoutedEventArgs e) => Move(-1);
 
     private void Move(int direction)
     {
-        if (ProductsGrid.SelectedItem is not ProductRow row) { Warn("Выберите товар в таблице."); return; }
-        if (!int.TryParse(MoveBox.Text, out var count) || count < 1 || count > 1_000_000) { Warn("Введите положительное целое количество до 1 000 000."); return; }
+        if (ProductsGrid.SelectedItem is not ProductRow row) { Warn("Select a product in the table."); return; }
+        if (!int.TryParse(MoveBox.Text, out var count) || count < 1 || count > 1_000_000) { Warn("Enter a positive whole number up to 1,000,000."); return; }
         var product = _inventory.Products.First(p => p.Sku == row.Sku);
-        if (direction < 0 && count > product.Quantity) { Warn("Для расхода недостаточно товара."); return; }
-        if (direction > 0 && product.Quantity > int.MaxValue - count) { Warn("Слишком большое количество."); return; }
+        if (direction < 0 && count > product.Quantity) { Warn("Not enough stock for this shipment."); return; }
+        if (direction > 0 && product.Quantity > int.MaxValue - count) { Warn("Quantity is too large."); return; }
         product.Quantity += direction * count;
         var movement = new Movement { Time = DateTime.Now, Sku = product.Sku, ProductName = product.Name,
-            Type = direction > 0 ? "Приход" : "Расход", Quantity = count, Note = NoteBox.Text.Trim() };
+            Type = direction > 0 ? "Received" : "Shipped", Quantity = count, Note = NoteBox.Text.Trim() };
         _inventory.Movements.Add(movement);
         if (!Save()) { product.Quantity -= direction * count; _inventory.Movements.Remove(movement); return; }
         NoteBox.Clear();
@@ -120,10 +120,10 @@ public partial class StockWindow : Window
     {
         var sku = SkuBox.Text.Trim(); var name = NameBox.Text.Trim(); var category = CategoryBox.Text.Trim();
         if (sku.Length is < 2 or > 40 || name.Length is < 2 or > 100 || category.Length is < 2 or > 60)
-        { Warn("Введите артикул, название и категорию (не менее 2 символов)."); return; }
-        if (_inventory.Products.Any(p => p.Sku.Equals(sku, StringComparison.OrdinalIgnoreCase))) { Warn("Этот артикул уже существует."); return; }
+        { Warn("Enter an SKU, name, and category (at least 2 characters each)."); return; }
+        if (_inventory.Products.Any(p => p.Sku.Equals(sku, StringComparison.OrdinalIgnoreCase))) { Warn("This SKU already exists."); return; }
         if (!int.TryParse(QuantityBox.Text, out var quantity) || quantity < 0 || !int.TryParse(MinimumBox.Text, out var minimum) || minimum < 0)
-        { Warn("Остаток и минимум должны быть неотрицательными целыми числами."); return; }
+        { Warn("Quantity and minimum must be non-negative whole numbers."); return; }
         var product = new Product { Sku = sku, Name = name, Category = category, Quantity = quantity, Minimum = minimum };
         _inventory.Products.Add(product);
         if (!Save()) { _inventory.Products.Remove(product); return; }
@@ -133,7 +133,7 @@ public partial class StockWindow : Window
 
     private void Export_Click(object sender, RoutedEventArgs e)
     {
-        var dialog = new SaveFileDialog { Title = "Экспорт каталога", Filter = "CSV (*.csv)|*.csv", FileName = "stockroom-products.csv" };
+        var dialog = new SaveFileDialog { Title = "Export catalog", Filter = "CSV (*.csv)|*.csv", FileName = "stockroom-products.csv" };
         if (dialog.ShowDialog(this) != true) return;
         try
         {
@@ -141,9 +141,9 @@ public partial class StockWindow : Window
             lines.AddRange(_inventory.Products.Select(p => string.Join(",", Csv(p.Sku), Csv(p.Name), Csv(p.Category),
                 p.Quantity, p.Minimum, Csv(p.Quantity <= p.Minimum ? "Low stock" : "In stock"))));
             File.WriteAllLines(dialog.FileName, lines, new UTF8Encoding(true));
-            MessageBox.Show("CSV сохранён: " + dialog.FileName, "Stockroom");
+            MessageBox.Show("CSV saved: " + dialog.FileName, "Stockroom");
         }
-        catch (Exception ex) { Warn("Не удалось экспортировать CSV: " + ex.Message); }
+        catch (Exception ex) { Warn("Could not export CSV: " + ex.Message); }
     }
 
     private static string Csv(string s) => "\"" + s.Replace("\"", "\"\"") + "\"";
@@ -158,20 +158,20 @@ public sealed class Inventory
     {
         Products = new()
         {
-            new() { Sku="SKU-1001", Name="Беспроводные наушники Nova", Category="Электроника", Quantity=34, Minimum=10 },
-            new() { Sku="SKU-1002", Name="Настольная лампа Arc", Category="Освещение", Quantity=7, Minimum=12 },
-            new() { Sku="SKU-1003", Name="Термокружка 450 мл", Category="Дом и кухня", Quantity=58, Minimum=15 },
-            new() { Sku="SKU-1004", Name="Bluetooth-колонка Pulse", Category="Электроника", Quantity=3, Minimum=8 },
-            new() { Sku="SKU-1005", Name="Блокнот A5 Linen", Category="Канцтовары", Quantity=92, Minimum=20 },
-            new() { Sku="SKU-1006", Name="USB-C кабель 2 м", Category="Электроника", Quantity=18, Minimum=20 },
-            new() { Sku="SKU-1007", Name="Органайзер Desk", Category="Дом и кухня", Quantity=41, Minimum=10 },
-            new() { Sku="SKU-1008", Name="Подставка для ноутбука", Category="Аксессуары", Quantity=26, Minimum=8 }
+            new() { Sku="SKU-1001", Name="Nova wireless headphones", Category="Electronics", Quantity=34, Minimum=10 },
+            new() { Sku="SKU-1002", Name="Arc desk lamp", Category="Lighting", Quantity=7, Minimum=12 },
+            new() { Sku="SKU-1003", Name="450 ml travel mug", Category="Homeware", Quantity=58, Minimum=15 },
+            new() { Sku="SKU-1004", Name="Pulse Bluetooth speaker", Category="Electronics", Quantity=3, Minimum=8 },
+            new() { Sku="SKU-1005", Name="Linen A5 notebook", Category="Stationery", Quantity=92, Minimum=20 },
+            new() { Sku="SKU-1006", Name="2 m USB-C cable", Category="Electronics", Quantity=18, Minimum=20 },
+            new() { Sku="SKU-1007", Name="Desk organizer", Category="Homeware", Quantity=41, Minimum=10 },
+            new() { Sku="SKU-1008", Name="Laptop stand", Category="Accessories", Quantity=26, Minimum=8 }
         },
         Movements = new()
         {
-            new() { Time=DateTime.Now.AddMinutes(-35), Type="Приход", Sku="SKU-1001", ProductName="Беспроводные наушники Nova", Quantity=12, Note="Поставка №18" },
-            new() { Time=DateTime.Now.AddHours(-2), Type="Расход", Sku="SKU-1004", ProductName="Bluetooth-колонка Pulse", Quantity=5, Note="Заказ #2041" },
-            new() { Time=DateTime.Now.AddHours(-4), Type="Расход", Sku="SKU-1003", ProductName="Термокружка 450 мл", Quantity=2, Note="Заказ #2040" }
+            new() { Time=DateTime.Now.AddMinutes(-35), Type="Received", Sku="SKU-1001", ProductName="Nova wireless headphones", Quantity=12, Note="Delivery #18" },
+            new() { Time=DateTime.Now.AddHours(-2), Type="Shipped", Sku="SKU-1004", ProductName="Pulse Bluetooth speaker", Quantity=5, Note="Order #2041" },
+            new() { Time=DateTime.Now.AddHours(-4), Type="Shipped", Sku="SKU-1003", ProductName="450 ml travel mug", Quantity=2, Note="Order #2040" }
         }
     };
 }
@@ -192,7 +192,7 @@ public sealed class ProductRow(Product p)
     public string Category { get; } = p.Category;
     public int Quantity { get; } = p.Quantity;
     public int Minimum { get; } = p.Minimum;
-    public string Status { get; } = p.Quantity <= p.Minimum ? "Пополнить" : "В наличии";
+    public string Status { get; } = p.Quantity <= p.Minimum ? "Low stock" : "In stock";
 }
 
 public sealed class Movement

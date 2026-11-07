@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+.vs/
+publish/
+inventory.json
+*.user
+*.suo
+startup.log
+preview.png
